@@ -2,6 +2,8 @@ import GlobalStateManager from '../../src/global-state-manager';
 import setGlobal from '../../src/set-global';
 import useGlobal from '../../src/use-global';
 import REACT_HOOKS_ERROR from '../../src/utils/react-hooks-error';
+import DispatchFunction from '../../types/dispatch-function';
+import Dispatchers from '../../types/dispatchers';
 import { StateTuple } from '../../types/use-global';
 import HookTest from '../utils/hook-test';
 import { G, INITIAL_REDUCERS, INITIAL_STATE, R } from '../utils/initial';
@@ -34,15 +36,9 @@ const NEW_STATE: G = {
 describe('useGlobal(string)', (): void => {
 
   let globalStateManager: GlobalStateManager<G, R>;
-  let testUseGlobal: HookTest<P, T>;
-
   beforeEach((): void => {
     globalStateManager =
       new GlobalStateManager<G, R>(INITIAL_STATE, INITIAL_REDUCERS);
-    testUseGlobal =
-      new HookTest<P, T>(
-        (property: P[0]): T => useGlobal(globalStateManager, property),
-      );
   });
 
 
@@ -50,11 +46,22 @@ describe('useGlobal(string)', (): void => {
   // If Hooks are not supported,
   if (!hasHooks) {
     it('should require Hooks', (): void => {
-      testUseGlobal.render(PROPERTY);
-      expect(testUseGlobal.error).toBe(REACT_HOOKS_ERROR);
+      expect((): void => {
+        useGlobal(globalStateManager, PROPERTY);
+      }).toThrowError(REACT_HOOKS_ERROR);
     });
     return;
   }
+
+
+
+  let testUseGlobal: HookTest<P, T>;
+  beforeEach((): void => {
+    testUseGlobal =
+      new HookTest<P, T>(
+        (property: P[0]): T => useGlobal(globalStateManager, property),
+      );
+  });
 
 
 
@@ -118,8 +125,16 @@ describe('useGlobal(string)', (): void => {
 
   describe('setter', (): void => {
 
+    it('should maintain reference across renders', async (): Promise<void> => {
+      testUseGlobal.render(PROPERTY);
+      const [ , setValue ]: T = testUseGlobal.value;
+      await setValue(NEW_VALUE);
+      const [ , setValue2 ]: T = testUseGlobal.value;
+      expect(setValue).toBe(setValue2);
+    });
+
     describe('with callback', (): void => {
-      const CALLBACK: jest.Mock<void, [ G ]> = jest.fn();
+      const CALLBACK: jest.Mock<void, [ G, DispatchFunction<G> & Dispatchers<G, R> ]> = jest.fn();
 
       it(
         'should return a Promise of the new global state',
@@ -149,9 +164,11 @@ describe('useGlobal(string)', (): void => {
         expect(CALLBACK).toHaveBeenCalledTimes(1);
         expect(CALLBACK).toHaveBeenCalledWith(
           NEW_STATE,
-          globalStateManager.dispatchers,
+          expect.anything(),
           STATE_CHANGE,
         );
+        expect(CALLBACK.mock.calls[0][1].toString())
+          .toBe(globalStateManager.dispatcherMap.toString());
       });
     });
 

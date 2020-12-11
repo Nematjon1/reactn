@@ -1,6 +1,9 @@
+import DispatchFunction from './types/dispatch-function';
 import Dispatchers from './types/dispatchers';
 
-export type Dispatch = Dispatchers<State, Reducers>;
+type DispatcherMap = DispatchFunction<State> & Dispatchers<State, Reducers>;
+
+export interface Dispatch extends DispatcherMap { }
 
 export interface Reducers { }
 

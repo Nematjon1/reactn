@@ -2,11 +2,12 @@ import ReactN = require('../../src/index');
 import createProvider from '../../src/create-provider';
 import defaultGlobalStateManager from '../../src/default-global-state-manager';
 import Dispatcher, { ExtractArguments } from '../../types/dispatcher';
+import DispatchFunction from '../../types/dispatch-function';
 import Dispatchers from '../../types/dispatchers';
 import ReactNProvider from '../../types/provider';
 import HookTest from '../utils/hook-test';
 import { G, INITIAL_REDUCERS, INITIAL_STATE, R } from '../utils/initial';
-import { hasContext } from '../utils/react-version';
+import { hasHooks } from '../utils/react-version';
 import spyOn from '../utils/spy-on-global-state-manager';
 
 
@@ -15,7 +16,7 @@ type A = ExtractArguments<R[typeof REDUCER]>;
 
 type P = [ ];
 
-type V = Dispatchers<G, R>;
+type V = DispatchFunction<G> & Dispatchers<G, R>;
 
 
 
@@ -23,25 +24,9 @@ const ARGS: A = [ 'te', 'st' ];
 
 const EMPTY_STATE: {} = Object.create(null);
 
-const Provider: ReactNProvider<G, R> = createProvider<G, R>(
-  INITIAL_STATE,
-  INITIAL_REDUCERS,
-);
-
 const REDUCER: keyof R = 'append';
 
 const REDUCER_NAMES: string[] = Object.keys(INITIAL_REDUCERS);
-
-const STATE_CHANGE: Partial<G> = INITIAL_REDUCERS[REDUCER](
-  INITIAL_STATE,
-  Provider.dispatch,
-  ...ARGS,
-);
-
-const NEW_STATE: G = {
-  ...INITIAL_STATE,
-  ...STATE_CHANGE,
-};
 
 REDUCER_NAMES.sort();
 
@@ -50,14 +35,35 @@ REDUCER_NAMES.sort();
 describe('Context useDispatch()', (): void => {
 
   // If Context is not supported,
-  if (!hasContext) {
+  if (!hasHooks) {
+    it.todo('should require hooks');
     return;
   }
 
+
+
+  const Provider: ReactNProvider<G, R> = createProvider<G, R>(
+    INITIAL_STATE,
+    INITIAL_REDUCERS,
+  );
+
+  const spy = spyOn('set');
+  
+  const STATE_CHANGE: Partial<G> = INITIAL_REDUCERS[REDUCER](
+    INITIAL_STATE,
+    Provider.dispatcherMap,
+    ...ARGS,
+  );
+
+  const NEW_STATE: G = {
+    ...INITIAL_STATE,
+    ...STATE_CHANGE,
+  };
+
+
+
   let dispatchers: Dispatchers<G, R>;
   let testUseDispatch: HookTest<P, V>;
-  const spy = spyOn('set');
-
   beforeEach((): void => {
     testUseDispatch =
       new HookTest<P, V>(
@@ -73,8 +79,8 @@ describe('Context useDispatch()', (): void => {
   });
 
 
-  it('should return an object', (): void => {
-    expect(typeof dispatchers).toBe('object');
+  it('should return a function', (): void => {
+    expect(dispatchers).toBeInstanceOf(Function);
   });
 
   it('should return the global dispatch object', async (): Promise<void> => {

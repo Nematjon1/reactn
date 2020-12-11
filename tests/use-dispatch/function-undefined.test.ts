@@ -1,7 +1,9 @@
 import GlobalStateManager from '../../src/global-state-manager';
 import useDispatch from '../../src/use-dispatch';
 import REACT_HOOKS_ERROR from '../../src/utils/react-hooks-error';
+import DispatchFunction from '../../types/dispatch-function';
 import Dispatcher from '../../types/dispatcher';
+import Dispatchers from '../../types/dispatchers';
 import Reducer from '../../types/reducer';
 import HookTest from '../utils/hook-test';
 import { G, INITIAL_REDUCERS, INITIAL_STATE } from '../utils/initial';
@@ -22,10 +24,15 @@ type V = Dispatcher<G, A>;
 
 const ARGS: string[] = [ 'te', 'st' ];
 
+const NOOP = () => {};
+
 const REDUCER: AppendReducer = INITIAL_REDUCERS.append;
 
-const STATE_CHANGE: Partial<G> =
-  REDUCER(INITIAL_STATE, {}, ...ARGS) as Partial<G>;
+const STATE_CHANGE: Partial<G> = REDUCER(
+  INITIAL_STATE,
+  NOOP as any as DispatchFunction<G> & Dispatchers<G>,
+  ...ARGS,
+) as Partial<G>;
 
 const NEW_STATE: G = {
   ...INITIAL_STATE,
@@ -37,27 +44,36 @@ const NEW_STATE: G = {
 describe('useDispatch(Function)', (): void => {
 
   let globalStateManager: GlobalStateManager<G>;
-  let testUseDispatch: HookTest<P, V>;
-  const spy = spyOn('set');
-
   beforeEach((): void => {
     globalStateManager = new GlobalStateManager<G>(INITIAL_STATE);
+  });
+
+
+
+  // If Hooks are not supported,
+  if (!hasHooks) {
+    it('should require Hooks', (): void => {
+      expect((): void => {
+        useDispatch(globalStateManager, REDUCER);
+      }).toThrowError(REACT_HOOKS_ERROR);
+    });
+    return;
+  }
+
+
+
+  const spy = spyOn('set');
+
+
+
+  let testUseDispatch: HookTest<P, V>;
+  beforeEach((): void => {
     testUseDispatch =
       new HookTest<P, V>(
         (reducer: AppendReducer): V =>
           useDispatch<G, {}, A>(globalStateManager, reducer),
       );
   });
-
-
-  // If Hooks are not supported,
-  if (!hasHooks) {
-    it('should require Hooks', (): void => {
-      testUseDispatch.render(REDUCER);
-      expect(testUseDispatch.error).toBe(REACT_HOOKS_ERROR);
-    });
-    return;
-  }
 
 
 

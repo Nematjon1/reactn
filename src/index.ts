@@ -4,14 +4,16 @@ import {
   ReactNComponentClass,
   ReactNPureComponentClass,
 } from '../types/component-class';
-import Dispatcher, { ExtractArguments } from '../types/dispatcher';
+import DispatchFunction from '../types/dispatch-function';
+import Dispatcher, { ExtractArguments, PropertyDispatcher } from '../types/dispatcher';
 import Dispatchers from '../types/dispatchers';
 import NewGlobalState from '../types/new-global-state';
 import Omit from '../types/omit';
 import ReactNProvider from '../types/provider';
-import Reducer, { AdditionalReducers } from '../types/reducer';
+import Reducer, { AdditionalReducers, PropertyReducer } from '../types/reducer';
 import { GlobalTuple, StateTuple } from '../types/use-global';
 import WithGlobal, { Getter, Setter } from '../types/with-global';
+import WithInit from '../types/with-init';
 import { ReactNComponent, ReactNPureComponent } from './components';
 import addCallback from './add-callback';
 import addReducer from './add-reducer';
@@ -27,6 +29,7 @@ import setGlobal from './set-global';
 import useDispatch from './use-dispatch';
 import useGlobal from './use-global';
 import withGlobal from './with-global';
+import withInit from './with-init';
 import React = require('react');
 
 
@@ -43,13 +46,17 @@ interface ReactN extends Omit<typeof React, 'Component' | 'default' | 'PureCompo
     callback: Callback<G>,
   ): BooleanFunction;
 
-  addReducer<G extends {} = State>(
+  addReducer<G extends {} = State, R extends {} = Reducers, ReducerName extends keyof R = keyof R>(
+    name: ReducerName,
+    reducer: R[ReducerName],
+  ): BooleanFunction;
+  addReducer<G extends {} = State, R extends {} = Reducers>(
     name: string,
-    reducer: Reducer<G>,
+    reducer: Reducer<G, R & AdditionalReducers<G, R>>,
   ): BooleanFunction;
 
-  addReducers<G extends {} = State, R extends {} = Reducers>(
-    reducers: AdditionalReducers<G, R>,
+  addReducers<G extends {} = State, R extends {} = Reducers, AR extends AdditionalReducers<G, R> = AdditionalReducers<G, R>, ARR extends AdditionalReducers<G, R & AR> = AdditionalReducers<G, R & AR>>(
+    reducers: Partial<R> & ARR,
   ): BooleanFunction;
 
   // This line should not need to exist, since `Component` exists on both the
@@ -85,27 +92,43 @@ interface ReactN extends Omit<typeof React, 'Component' | 'default' | 'PureCompo
     callback?: Callback<G>,
   ): Promise<G>;
 
+  // useDispatch()
   useDispatch<G extends {} = State, R extends {} = Reducers>(
-  ): Dispatchers<G, R>;
+  ): DispatchFunction<G> & Dispatchers<G, R>;
 
+  // useDispatch(Function)
   useDispatch<G extends {} = State, R extends {} = Reducers, A extends any[] = any[]>(
     reducer: Reducer<G, R, A>,
   ): Dispatcher<G, A>;
 
+  // useDispatch(Function, keyof State)
+  useDispatch<G extends {} = State, R extends {} = Reducers, P extends keyof G = keyof G, A extends any[] = any[]>(
+    reducer: PropertyReducer<G, P, A>,
+    property: P,
+  ): PropertyDispatcher<G, P, A>;
+
+  // useDispatch(keyof Reducers)
   useDispatch<G extends {} = State, R extends {} = Reducers, K extends keyof R = keyof R>(
     reducer: K,
   ): Dispatcher<G, ExtractArguments<R[K]>>;
 
+  // useGlobal(keyof State)
   useGlobal<G extends {} = State, Property extends keyof G = keyof G>(
     property: Property,
   ): StateTuple<G, Property>;
 
+  // useGlobal()
   useGlobal<G extends {} = State>(): GlobalTuple<G>;
 
   withGlobal<G extends {} = State, R extends {} = Reducers, HP extends {} = {}, LP extends {} = {}>(
     getter?: Getter<G, R, HP, LP>,
     setter?: Setter<G, R, HP, LP>,
   ): WithGlobal<HP, LP>;
+
+  withInit<G extends {} = State, R extends {} = Reducers, P extends {} = {}>(
+    initialGlobal?: NewGlobalState<G> | null,
+    initialReducers?: null | R,
+  ): WithInit<P, G, R>;
 }
 
 declare namespace ReactNTypes {
@@ -166,4 +189,5 @@ export = Object.assign(reactn, React, {
   useDispatch: useDispatch.bind(null, null),
   useGlobal: useGlobal.bind(null, null),
   withGlobal: withGlobal.bind(null, null),
+  withInit,
 }) as ReactN & typeof ReactNTypes;

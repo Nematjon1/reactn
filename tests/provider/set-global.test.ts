@@ -1,7 +1,11 @@
 import createProvider from '../../src/create-provider';
+import DispatchFunction from '../../types/dispatch-function';
+import Dispatchers from '../../types/dispatchers';
 import ReactNProvider from '../../types/provider';
 import { G, INITIAL_REDUCERS, INITIAL_STATE, R } from '../utils/initial';
+import { hasContext } from '../utils/react-version';
 import spyOn from '../utils/spy-on-global-state-manager';
+import itShouldRequireContext from './utils/it-should-require-context';
 
 
 
@@ -18,6 +22,14 @@ const NEW_STATE: G = {
 
 describe('Provider.setGlobal', (): void => {
 
+  // If Context is not supported,
+  if (!hasContext) {
+    itShouldRequireContext();
+    return;
+  }
+
+
+
   let Provider: ReactNProvider<G, R>;
   beforeEach((): void => {
     Provider = createProvider(INITIAL_STATE, INITIAL_REDUCERS);
@@ -33,11 +45,13 @@ describe('Provider.setGlobal', (): void => {
   it(
     'should execute a callback with the new state',
     async (): Promise<void> => {
-      const CALLBACK: jest.Mock<void, []> = jest.fn();
+      const CALLBACK: jest.Mock<void, [ G, DispatchFunction<G> & Dispatchers<G, R>]> = jest.fn();
       await Provider.setGlobal(STATE_CHANGE, CALLBACK);
       expect(CALLBACK).toHaveBeenCalledTimes(1);
       expect(CALLBACK)
-        .toHaveBeenCalledWith(NEW_STATE, Provider.dispatch, STATE_CHANGE);
+        .toHaveBeenCalledWith(NEW_STATE, expect.anything(), STATE_CHANGE);
+      expect(CALLBACK.mock.calls[0][1].toString())
+        .toBe(Provider.dispatcherMap.toString());
     }
   );
 
